@@ -2,17 +2,21 @@ import numpy as np
 import cv2
 from helper import *
 from facial_landmarks import *
-<<<<<<< HEAD
+
 from faceswap import *
-=======
+
 from estimateH import *
+<<<<<<< HEAD
 >>>>>>> 13eb307... some changes
+=======
+
+>>>>>>> fb9cb88... kinda working
 import matplotlib.pyplot as plt
 
 vid1 = 'CIS581Project4PartCDatasets/Easy/FrankUnderwood.mp4'
 vid2 = 	'CIS581Project4PartCDatasets/Easy/MrRobot.mp4'
 
-<<<<<<< HEAD
+
 output_im = []
 output_im_ = []
 frames1, frames2 = getFrames(vid1,vid2)
@@ -49,6 +53,7 @@ for i in range(0, length):
 
 cv2.imwrite('useless.jpg', output_im[0])
 makeVideos(output_im, output_im_)
+<<<<<<< HEAD
 #plt.show()
 =======
 try:
@@ -71,3 +76,5 @@ plt.scatter(np.array(dst_pts)[:,0],np.array(dst_pts)[:,1], 0.3)
 plt.show()
 
 >>>>>>> 13eb307... some changes
+=======
+>>>>>>> fb9cb88... kinda working

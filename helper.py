@@ -1,4 +1,5 @@
 import cv2
+import imageio
 
 def getFrames(vid1, vid2):
 
@@ -19,4 +20,8 @@ def getFrames(vid1, vid2):
         success2, img2 = vidcap2.read()
 
     return frames1, frames2
+cv2.imwrite('output1.jpg', output_im)
+def makeVideos(frames1, frames2):
 
+    imageio.mimsave('./output1.mp4', frames1)
+    imageio.mimsave('./output2.mp4', frames2)
