@@ -37,7 +37,7 @@ from `<head image>` replaced with the facial features from `<face image>`.
 """
 import dlib
 import numpy
-
+import matplotlib.pyplot as plt
 import sys
 
 PREDICTOR_PATH = "./shape_predictor_68_face_landmarks.dat"
@@ -55,13 +55,13 @@ JAW_POINTS = list(range(0, 17))
 
 # Points used to line up the images.
 ALIGN_POINTS = (LEFT_BROW_POINTS + RIGHT_EYE_POINTS + LEFT_EYE_POINTS +
-                RIGHT_BROW_POINTS + NOSE_POINTS + MOUTH_POINTS)
+                RIGHT_BROW_POINTS + NOSE_POINTS + MOUTH_POINTS + JAW_POINTS)
 
 # Points from the second image to overlay on the first. The convex hull of each
 # element will be overlaid.
 OVERLAY_POINTS = [
     LEFT_EYE_POINTS + RIGHT_EYE_POINTS + LEFT_BROW_POINTS + RIGHT_BROW_POINTS,
-    NOSE_POINTS + MOUTH_POINTS,
+    NOSE_POINTS + MOUTH_POINTS + JAW_POINTS,
 ]
 
 # Amount of blur to use during colour correction, as a fraction of the
