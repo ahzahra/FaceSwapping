@@ -53,16 +53,21 @@ LEFT_EYE_POINTS = list(range(42, 48))
 NOSE_POINTS = list(range(27, 35))
 JAW_POINTS = list(range(0, 17))
 
+# JAW_POINTS = list(range(5,14))
 # Points used to line up the images.
 ALIGN_POINTS = (LEFT_BROW_POINTS + RIGHT_EYE_POINTS + LEFT_EYE_POINTS +
-                RIGHT_BROW_POINTS + NOSE_POINTS + MOUTH_POINTS + JAW_POINTS)
+                RIGHT_BROW_POINTS + NOSE_POINTS + MOUTH_POINTS)
+# ALIGN_POINTS = (JAW_POINTS + RIGHT_BROW_POINTS[::-1] + LEFT_BROW_POINTS[::-1])
 
 # Points from the second image to overlay on the first. The convex hull of each
 # element will be overlaid.
 OVERLAY_POINTS = [
     LEFT_EYE_POINTS + RIGHT_EYE_POINTS + LEFT_BROW_POINTS + RIGHT_BROW_POINTS,
-    NOSE_POINTS + MOUTH_POINTS + JAW_POINTS,
+    NOSE_POINTS + MOUTH_POINTS,
 ]
+# OVERLAY_POINTS = [
+#     JAW_POINTS + RIGHT_BROW_POINTS[::-1] + LEFT_BROW_POINTS[::-1]
+# ]
 
 # Amount of blur to use during colour correction, as a fraction of the
 # pupillary distance.
