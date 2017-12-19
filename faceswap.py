@@ -42,7 +42,7 @@ import sys
 
 PREDICTOR_PATH = "./shape_predictor_68_face_landmarks.dat"
 SCALE_FACTOR = 1
-FEATHER_AMOUNT = 11
+FEATHER_AMOUNT = 5
 
 FACE_POINTS = list(range(17, 68))
 MOUTH_POINTS = list(range(48, 61))
@@ -51,27 +51,27 @@ LEFT_BROW_POINTS = list(range(22, 27))
 RIGHT_EYE_POINTS = list(range(36, 42))
 LEFT_EYE_POINTS = list(range(42, 48))
 NOSE_POINTS = list(range(27, 35))
-JAW_POINTS = list(range(0, 17))
+JAW_POINTS = list(range(5, 12))
 
 # JAW_POINTS = list(range(5,14))
 # Points used to line up the images.
 ALIGN_POINTS = (LEFT_BROW_POINTS + RIGHT_EYE_POINTS + LEFT_EYE_POINTS +
-                RIGHT_BROW_POINTS + NOSE_POINTS + MOUTH_POINTS)
-# ALIGN_POINTS = (JAW_POINTS + RIGHT_BROW_POINTS[::-1] + LEFT_BROW_POINTS[::-1])
+                RIGHT_BROW_POINTS + NOSE_POINTS)
+# ALIGN_POINTS = (NOSE_POINTS+ MOUTH_POINTS)
 
 # Points from the second image to overlay on the first. The convex hull of each
 # element will be overlaid.
-OVERLAY_POINTS = [
-    LEFT_EYE_POINTS + RIGHT_EYE_POINTS + LEFT_BROW_POINTS + RIGHT_BROW_POINTS,
-    NOSE_POINTS + MOUTH_POINTS,
-]
 # OVERLAY_POINTS = [
-#     JAW_POINTS + RIGHT_BROW_POINTS[::-1] + LEFT_BROW_POINTS[::-1]
+#     LEFT_EYE_POINTS + RIGHT_EYE_POINTS + LEFT_BROW_POINTS + RIGHT_BROW_POINTS,
+#     NOSE_POINTS + MOUTH_POINTS,
 # ]
+OVERLAY_POINTS = [
+    JAW_POINTS + RIGHT_BROW_POINTS[::-1] + LEFT_BROW_POINTS[::-1]
+]
 
 # Amount of blur to use during colour correction, as a fraction of the
 # pupillary distance.
-COLOUR_CORRECT_BLUR_FRAC = 0.6
+COLOUR_CORRECT_BLUR_FRAC = 0.8
 
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(PREDICTOR_PATH)
@@ -110,11 +110,12 @@ def annotate_landmarks(im, landmarks):
 
 def draw_convex_hull(im, points, color):
     points = cv2.convexHull(points)
-    cv2.fillConvexPoly(im, points, color=color)
+    cv2.fillConvexPoly(im, numpy.int32(points), (255, 255, 255))
 
 
 def get_face_mask(im, landmarks):
-    im = numpy.zeros(im.shape[:2], dtype=numpy.float64)
+    # print im.shape
+    im = numpy.zeros(im.shape[:2], dtype=numpy.uint8)
 
     for group in OVERLAY_POINTS:
         draw_convex_hull(im,
@@ -123,10 +124,60 @@ def get_face_mask(im, landmarks):
 
     im = numpy.array([im, im, im]).transpose((1, 2, 0))
 
+
     im = (cv2.GaussianBlur(im, (FEATHER_AMOUNT, FEATHER_AMOUNT), 0) > 0) * 1.0
     im = cv2.GaussianBlur(im, (FEATHER_AMOUNT, FEATHER_AMOUNT), 0)
 
     return im
+
+def RANSAC_affine_transform(points1, points2, eps=8.0):
+    '''
+        Run RANSAC to estimate the affine transform for a set of points
+    '''
+    K = 500
+    max_inliers = 0
+    best_points1 =[]
+    best_points2 = []
+
+    points = numpy.hstack((points1, points2))
+
+    for i in range(K):
+        numpy.random.seed(0)
+        random_points = numpy.copy(points)
+        numpy.random.shuffle(random_points)
+
+        random_points = random_points[:3,:]
+
+        T = transformation_from_points(numpy.matrix(random_points[:,:2]), numpy.matrix(random_points[:,2:]))
+        num_inliers = 0
+
+        curr_best_points1 = []
+        curr_best_points2 = []
+        for j in range(points.shape[0]):
+            p1 = points[j,:2]
+            p2 = points[j,2:]
+
+            est_p2 = T*numpy.vstack((p1.T,1))
+            est_p2 = est_p2/est_p2[2,0]
+
+            if numpy.linalg.norm(p2 - est_p2[:2,0].T) <= eps:
+                num_inliers = num_inliers + 1
+                curr_best_points1.append(p1)
+                curr_best_points2.append(p2)
+
+        if num_inliers > max_inliers:
+            max_inliers = num_inliers
+            best_points1 = curr_best_points1
+            best_points2 = curr_best_points2
+
+    p1 = numpy.asarray(best_points1).reshape(max_inliers,2)
+    p2 = numpy.asarray(best_points2).reshape(max_inliers,2)
+
+    T = transformation_from_points(numpy.matrix(p1),numpy.matrix(p2))  
+
+    return T
+
+
 
 
 def transformation_from_points(points1, points2):
@@ -153,6 +204,7 @@ def transformation_from_points(points1, points2):
     points1 /= s1
     points2 /= s2
 
+    # print points1.T*points2
     U, S, Vt = numpy.linalg.svd(points1.T * points2)
 
     # The R we seek is in fact the transpose of the one given by U * Vt. This
@@ -205,33 +257,33 @@ def correct_colours(im1, im2, landmarks1):
 
 # im1, landmarks1 = read_im_and_landmarks(sys.argv[1])
 # im2, landmarks2 = read_im_and_landmarks(sys.argv[2])
-#
+
 # M = transformation_from_points(landmarks1[ALIGN_POINTS],
 #                                landmarks2[ALIGN_POINTS])
 # M_ = transformation_from_points(landmarks2[ALIGN_POINTS],
 #                                landmarks1[ALIGN_POINTS])
-#
+
 # mask = get_face_mask(im2, landmarks2)
 # mask_ = get_face_mask(im1, landmarks1)
-#
+
 # warped_mask = warp_im(mask, M, im1.shape)
 # warped_mask_ = warp_im(mask_, M_, im2.shape)
-#
+
 # combined_mask = numpy.max([get_face_mask(im1, landmarks1), warped_mask],
 #                           axis=0)
 # combined_mask_ = numpy.max([get_face_mask(im2, landmarks2), warped_mask_],
 #                           axis=0)
-#
+
 # warped_im2 = warp_im(im2, M, im1.shape)
 # warped_im1 = warp_im(im1, M_, im2.shape)
-#
+
 # warped_corrected_im2 = correct_colours(im1, warped_im2, landmarks1)
 # warped_corrected_im1 = correct_colours(im2, warped_im1, landmarks2)
-#
+
 # output_im = im1 * (1.0 - combined_mask) + warped_corrected_im2 * combined_mask
 # output_im_ = im2 * (1.0 - combined_mask_) + warped_corrected_im1 * combined_mask_
-#
+
 # cv2.imwrite('output1.jpg', output_im)
 # cv2.imwrite('output2.jpg', output_im_)
-#
+
 # print("Done")

@@ -3,8 +3,6 @@
 import sys
 import numpy as np
 import cv2
-from facial_landmarks import * 
-from faceswap import *
 
 # Read points from text file
 def readPoints(path) :
@@ -25,13 +23,10 @@ def readPoints(path) :
 def applyAffineTransform(src, srcTri, dstTri, size) :
     
     # Given a pair of triangles, find the affine transform.
-    warpMat = transformation_from_points(np.matrix(np.float32(srcTri)), np.matrix(np.float32(dstTri)))
-    # warpMat1 = cv2.getAffineTransform( np.float32(srcTri), np.float32(dstTri) )
-
-    warpMat = warpMat[:2,:]
+    warpMat = cv2.getAffineTransform( np.float32(srcTri), np.float32(dstTri) )
     
     # Apply the Affine Transform just found to the src image
-    dst = cv2.warpAffine( src, np.float32(warpMat), (size[0], size[1]), None, flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT_101 )
+    dst = cv2.warpAffine( src, warpMat, (size[0], size[1]), None, flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT_101 )
 
     return dst
 
@@ -56,7 +51,7 @@ def calculateDelaunayTriangles(rect, points):
     
     # Insert points into subdiv
     for p in points:
-        subdiv.insert((p[0],p[1])) 
+        subdiv.insert(p) 
     
     triangleList = subdiv.getTriangleList();
     
@@ -127,24 +122,36 @@ def warpTriangle(img1, img2, t1, t2) :
     img2[r2[1]:r2[1]+r2[3], r2[0]:r2[0]+r2[2]] = img2[r2[1]:r2[1]+r2[3], r2[0]:r2[0]+r2[2]] * ( (1.0, 1.0, 1.0) - mask )
      
     img2[r2[1]:r2[1]+r2[3], r2[0]:r2[0]+r2[2]] = img2[r2[1]:r2[1]+r2[3], r2[0]:r2[0]+r2[2]] + img2Rect 
+    
 
-def fs2(landmarks1, landmarks2, img1, img2):
+if __name__ == '__main__' :
+    
+    # Make sure OpenCV is version 3.0 or above
+    (major_ver, minor_ver, subminor_ver) = (cv2.__version__).split('.')
+
+    if int(major_ver) < 3 :
+        print >>sys.stderr, 'ERROR: Script needs OpenCV 3.0 or higher'
+        sys.exit(1)
+
+    # Read images
+    filename1 = 'ted_cruz.jpg'
+    filename2 = 'donald_trump.jpg'
+    
+    img1 = cv2.imread(filename1);
+    img2 = cv2.imread(filename2);
     img1Warped = np.copy(img2);    
     
     # Read array of corresponding points
-    points1 = landmarks1[OVERLAY_POINTS].tolist()
-    points2 = landmarks2[OVERLAY_POINTS].tolist()  
-
-    points1 = [[int(i[0]), int(i[1])] for i in points1]
-    points2 = [[int(i[0]), int(i[1])] for i in points2]
+    points1 = readPoints(filename1 + '.txt')
+    points2 = readPoints(filename2 + '.txt')  
+    print points1  
     
     # Find convex hull
     hull1 = []
     hull2 = []
 
-    hullIndex = cv2.convexHull(np.array(landmarks1[OVERLAY_POINTS]), returnPoints = False)
-    # print hull
- 
+    hullIndex = cv2.convexHull(np.array(points2), returnPoints = False)
+          
     for i in xrange(0, len(hullIndex)):
         hull1.append(points1[int(hullIndex[i])])
         hull2.append(points2[int(hullIndex[i])])
@@ -153,12 +160,12 @@ def fs2(landmarks1, landmarks2, img1, img2):
     # Find delanauy traingulation for convex hull points
     sizeImg2 = img2.shape    
     rect = (0, 0, sizeImg2[1], sizeImg2[0])
-
+     
     dt = calculateDelaunayTriangles(rect, hull2)
     
     if len(dt) == 0:
         quit()
-
+    
     # Apply affine transformation to Delaunay triangles
     for i in xrange(0, len(dt)):
         t1 = []
@@ -185,92 +192,12 @@ def fs2(landmarks1, landmarks2, img1, img2):
     
     center = ((r[0]+int(r[2]/2), r[1]+int(r[3]/2)))
         
-    img1Warped = correct_colours(img2, img1Warped, landmarks2)
+    
     # Clone seamlessly.
     output = cv2.seamlessClone(np.uint8(img1Warped), img2, mask, center, cv2.NORMAL_CLONE)
-
-    return output
     
     # cv2.imshow("Face Swapped", output)
-    # cv2.imwrite('output1.jpg', output)
-
-# if __name__ == '__main__' :
+    cv2.imwrite('output1.jpg', output)
+    # cv2.waitKey(0)
     
-#     # Make sure OpenCV is version 3.0 or above
-#     (major_ver, minor_ver, subminor_ver) = (cv2.__version__).split('.')
-
-#     if int(major_ver) < 3 :
-#         print >>sys.stderr, 'ERROR: Script needs OpenCV 3.0 or higher'
-#         sys.exit(1)
-
-#     # Read images
-#     filename1 = 'trump.jpg'
-#     filename2 = 'obama.jpg'
-    
-#     img1 = cv2.imread(filename1);
-#     img2 = cv2.imread(filename2);
-#     img1Warped = np.copy(img2);    
-    
-#     # Read array of corresponding points
-#     landmarks1 = get_landmarks(img1)
-#     landmarks2 = get_landmarks(img2)
-#     points1 = landmarks1.tolist()
-#     points2 = landmarks2.tolist()  
-    
-#     # Find convex hull
-#     hull1 = []
-#     hull2 = []
-
-
-#     hullIndex = cv2.convexHull(np.array(points2), returnPoints = False)
-#     # print hull
- 
-#     for i in xrange(0, len(hullIndex)):
-#         hull1.append(points1[int(hullIndex[i])])
-#         hull2.append(points2[int(hullIndex[i])])
-    
-    
-#     # Find delanauy traingulation for convex hull points
-#     sizeImg2 = img2.shape    
-#     rect = (0, 0, sizeImg2[1], sizeImg2[0])
-
-#     dt = calculateDelaunayTriangles(rect, hull2)
-    
-#     if len(dt) == 0:
-#         quit()
-
-#     # Apply affine transformation to Delaunay triangles
-#     for i in xrange(0, len(dt)):
-#         t1 = []
-#         t2 = []
-        
-#         #get points for img1, img2 corresponding to the triangles
-#         for j in xrange(0, 3):
-#             t1.append(hull1[dt[i][j]])
-#             t2.append(hull2[dt[i][j]])
-        
-#         warpTriangle(img1, img1Warped, t1, t2)
-    
-            
-#     # Calculate Mask
-#     hull8U = []
-#     for i in xrange(0, len(hull2)):
-#         hull8U.append((hull2[i][0], hull2[i][1]))
-    
-#     mask = np.zeros(img2.shape, dtype = img2.dtype)  
-    
-#     cv2.fillConvexPoly(mask, np.int32(hull8U), (255, 255, 255))
-    
-#     r = cv2.boundingRect(np.float32([hull2]))    
-    
-#     center = ((r[0]+int(r[2]/2), r[1]+int(r[3]/2)))   
-    
-#     img1Warped = correct_colours(img2, img1Warped, landmarks2)
-
-#     # Clone seamlessly.
-#     output = cv2.seamlessClone(np.uint8(img1Warped), img2, mask, center, cv2.NORMAL_CLONE)
-    
-#     cv2.imshow("Face Swapped", output)
-#     cv2.imwrite('output1.jpg', output)
-
-#         
+    # cv2.destroyAllWindows()
